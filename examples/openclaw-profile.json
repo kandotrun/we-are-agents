@@ -1,0 +1,58 @@
+{
+  "mcp": {
+    "servers": {
+      "waa": {
+        "enabled": true,
+        "transport": "stdio",
+        "command": "/absolute/path/to/uv",
+        "args": [
+          "--directory",
+          "/absolute/path/we-are-agents",
+          "run",
+          "waa",
+          "openclaw",
+          "inbox",
+          "--binding",
+          "/absolute/path/we-are-agents/private/openclaw.json",
+          "--session",
+          "agent:waa-test:main"
+        ],
+        "cwd": "/absolute/path/we-are-agents",
+        "toolFilter": {
+          "include": ["identity", "list_team", "send_message", "check_inbox", "ack_messages"]
+        }
+      }
+    }
+  },
+  "tools": {"toolSearch": false, "codeMode": false},
+  "agents": {
+    "entries": {
+      "waa-test": {
+        "workspace": "/absolute/path/we-are-agents/.local/openclaw-workspace",
+        "models": {
+          "YOUR_PROVIDER/YOUR_MODEL": {"agentRuntime": {"id": "openclaw"}}
+        },
+        "heartbeat": {"every": "0m", "target": "none"},
+        "tools": {
+          "profile": "coding",
+          "allow": [
+            "waa__identity",
+            "waa__list_team",
+            "waa__send_message",
+            "waa__check_inbox",
+            "waa__ack_messages"
+          ]
+        }
+      }
+    }
+  },
+  "hooks": {
+    "enabled": true,
+    "token": "${WAA_OPENCLAW_HOOK_TOKEN}",
+    "path": "/hooks",
+    "allowedAgentIds": ["waa-test"],
+    "allowRequestSessionKey": false
+  },
+  "channels": {},
+  "bindings": []
+}

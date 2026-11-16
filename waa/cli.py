@@ -42,6 +42,14 @@ def main() -> None:
     pi_bridge = pi_commands.add_parser("bridge")
     pi_bridge.add_argument("--binding", type=Path, required=True)
     pi_bridge.add_argument("--session", required=True)
+    openclaw = commands.add_parser("openclaw", help="Signed OpenClaw inbox and local wake notifications")
+    openclaw_commands = openclaw.add_subparsers(dest="openclaw_command", required=True)
+    openclaw_inbox = openclaw_commands.add_parser("inbox")
+    openclaw_inbox.add_argument("--binding", type=Path, required=True)
+    openclaw_inbox.add_argument("--session", required=True)
+    openclaw_wake = openclaw_commands.add_parser("wake")
+    openclaw_wake.add_argument("--binding", type=Path, required=True)
+    openclaw_wake.add_argument("--once", action="store_true")
     t3 = commands.add_parser("t3", help="T3 Code inbox and queued wake notifications")
     t3_commands = t3.add_subparsers(dest="t3_command", required=True)
     wake = t3_commands.add_parser("wake")
@@ -49,6 +57,8 @@ def main() -> None:
     wake.add_argument("--once", action="store_true")
     inbox = t3_commands.add_parser("inbox")
     inbox.add_argument("--binding", type=Path, required=True)
+    t3_bridge = t3_commands.add_parser("bridge")
+    t3_bridge.add_argument("--binding", type=Path, required=True)
     args = parser.parse_args()
     try:
         if args.command == "bootstrap":
@@ -95,13 +105,26 @@ def main() -> None:
                 forwarded = args.args[1:] if args.args[:1] == ["--"] else args.args
                 raise SystemExit(run_pi(args.binding, forwarded))
             run_bridge(args.binding, args.session)
+        elif args.command == "openclaw":
+            if args.openclaw_command == "inbox":
+                from .mailbox import run_mcp
+
+                run_mcp(args.binding, args.session, adapter="openclaw")
+            else:
+                from .openclaw import run_wake
+
+                asyncio.run(run_wake(args.binding, once=args.once))
         else:
             from .t3 import run_inbox, run_wake
 
             if args.t3_command == "wake":
                 asyncio.run(run_wake(args.binding, once=args.once))
-            else:
+            elif args.t3_command == "inbox":
                 run_inbox(args.binding)
+            else:
+                from .t3_bridge import run_bridge
+
+                run_bridge(args.binding)
     except KeyboardInterrupt:
         raise SystemExit(130) from None
     except (OSError, RuntimeError, ValueError) as error:

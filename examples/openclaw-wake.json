@@ -1,0 +1,7 @@
+{
+  "mailbox_binding": "openclaw.json",
+  "session": "agent:waa-test:main",
+  "gateway_url": "http://127.0.0.1:19789/hooks/wake",
+  "token_file": "openclaw-hook-token",
+  "agent_id": "waa-test"
+}
