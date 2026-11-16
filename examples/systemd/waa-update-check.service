@@ -1,0 +1,9 @@
+[Unit]
+Description=Check for a We Are Agents release without installing it
+
+[Service]
+Type=oneshot
+Environment=WAA_NO_UPDATE_CHECK=1
+ExecStart=%h/.local/share/we-are-agents/bin/waa update check --home %h/.local/share/we-are-agents
+TimeoutStartSec=120
+UMask=0077

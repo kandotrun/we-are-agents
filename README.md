@@ -7,6 +7,29 @@
 ReasonアカウントやReason CLIは使わず、チームが管理するirohリレーを指定します。
 このリポジトリはReason Machinesの公式製品ではありません。
 
+## 配布版と更新
+
+[更新の手順](docs/updates.md)では、GitHub Releasesで検証した版を取得し、コードだけを切り替えます。
+設定・端末鍵・未読メール・署名台帳は、版から独立した固定パスに保存します。
+更新の適用と切り戻しは所有者の明示操作で行い、エージェントのMCPツールからは実行しません。
+
+初回は公開済みのImmutable ReleaseにあるインストーラーをGitHub CLIで検証してから実行します。
+導入後は、固定ランチャーを使って版の確認と更新を行います。
+ランチャーをPATHへ追加するか、手順に記載した絶対パスで起動します。
+
+```sh
+waa --version
+waa update status
+waa update check
+# 指定する版は公開済みリリースの番号に置き換える
+waa update apply --version 0.2.1
+# 互換性を確認した、導入済みの旧版に切り替える
+waa update rollback --version 0.2.0
+```
+
+開発用チェックアウトで既に使っている`private/`や`.local/`は、その絶対パスを維持します。
+更新機能は既存データの移動や、Pi・OpenClaw・T3本体の更新を行いません。
+
 ## 最初に動かす
 
 macOSまたはLinuxのarm64とx86_64に対応します。
