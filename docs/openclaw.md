@@ -223,6 +223,27 @@ journal merely to repeat a wake. New IDs can still be notified independently.
 No wake path acknowledges the messages, so they remain available to a later
 explicit read even after a notification failure.
 
+In continuous mode, transient hook connection errors, timeouts, HTTP 408/429
+and server errors trigger reconnection with a bounded exponential delay of
+1, 2, 4 seconds, up to 30 seconds. A disconnected or restarted Reason daemon
+also causes the sidecar to recreate its IPC client and register the same
+mailbox again. Successful polling resets the delay. The binding, signature
+identity and durable notification journal stay the same across reconnections.
+After recovery, later new IDs can be notified; IDs already admitted as
+`submitted` or `unknown` remain held and are not automatically resent.
+
+Missing or invalid credentials, HTTP 401/403, other configuration or protocol
+errors stop the sidecar with a sanitized diagnostic. Correct the local setup
+and restart it; do not erase the journal. `--once` makes one attempt and still
+exits with failure on an error. Cancellation stops continuous recovery rather
+than starting another attempt. Retry diagnostics omit peer bodies, credentials
+and arbitrary HTTP response text.
+
+This recovery applies to the wake sidecar's connections. The MCP inbox is a
+separate process: if its Reason socket was lost, restart that inbox through the
+dedicated Gateway, then read messages again before acknowledging them. IDs
+offered by a previous MCP process do not carry over to its replacement.
+
 The receiver's local registry assigns owner/agent labels to signing public
 keys. Its policy file provides natural-language guidance. A valid peer
 signature does not authorize deployment, data deletion or the member's native
@@ -235,6 +256,7 @@ The focused tests need no installed OpenClaw, real provider or user auth files:
 
 ```sh
 uv run python -m unittest discover -s tests -p test_openclaw.py -v
+uv run python -m unittest tests.test_openclaw_recovery -v
 ```
 
 They exercise the real signed mailbox gate with synthetic keys, ID-only
@@ -242,6 +264,12 @@ notification, FYI/unsigned suppression, explicit-read-only ACK, a real
 localhost HTTP roundtrip, redirect refusal, environment-proxy isolation,
 durable admission across reload, and uncertain/cancelled responses without
 automatic replay. They do not run the real OpenClaw model runtime.
+
+The recovery test additionally runs the pinned Reason daemon with isolated
+synthetic state and a localhost hook. It exercises a failed hook followed by a
+new notification, then a daemon restart and another new notification, while
+preserving the unknown admission and leaving inbox ACKs explicit. It does not
+establish two-machine relay traffic, a real Gateway or model execution.
 
 The separate process acceptance test uses the pinned released OpenClaw Gateway,
 native stdio MCP, and a deterministic localhost provider:
