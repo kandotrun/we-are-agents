@@ -13,5 +13,6 @@ COPY --from=fetch /out/iroh-relay /usr/local/bin/iroh-relay
 COPY examples/docker-relay.toml /etc/we-are-agents/relay.toml
 USER 65532:65532
 EXPOSE 3340/tcp
+STOPSIGNAL SIGINT
 ENTRYPOINT ["/usr/local/bin/iroh-relay"]
 CMD ["--config-path", "/etc/we-are-agents/relay.toml"]

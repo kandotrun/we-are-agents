@@ -50,6 +50,7 @@ def main():
     try:
         info = json.loads(docker("inspect", container))[0]
         assert info["Config"]["User"] == "65532:65532"
+        assert info["Config"]["StopSignal"] == "SIGINT"
         assert info["HostConfig"]["ReadonlyRootfs"]
         binding = info["NetworkSettings"]["Ports"]["3340/tcp"][0]
         assert binding["HostIp"] == "127.0.0.1"
@@ -68,6 +69,7 @@ def main():
         info = json.loads(docker("inspect", container))[0]
         assert not info["State"]["Running"]
         assert not info["State"]["OOMKilled"]
+        assert info["State"]["ExitCode"] == 0
         print("Relay container: version, nonroot/read-only startup, loopback HTTP, stop OK")
         print("Not a team, relay data-path, or real-agent acceptance test")
     finally:
