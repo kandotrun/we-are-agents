@@ -18,7 +18,7 @@ from typing import Any
 REPOSITORY = "kandotrun/we-are-agents"
 VERSION = re.compile(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)")
 FORBIDDEN = {"private", ".local", ".tools", ".venv", ".git", "__pycache__"}
-ROOT_FILES = {"Dockerfile", ".dockerignore", "compose.relay.yaml", "README.md", "AGENTS.md", "pyproject.toml", "uv.lock", "upstream.lock.json",
+ROOT_FILES = {"Dockerfile", ".dockerignore", "compose.relay.yaml", "README.md", "README.ja.md", "AGENTS.md", "pyproject.toml", "uv.lock", "upstream.lock.json",
               "LICENSE", "LICENSE.md", "LICENSE.txt", "NOTICE", "NOTICE.md"}
 REQUIRED = {"waa/cli.py", "waa/distribution.py", "pyproject.toml", "uv.lock", "upstream.lock.json",
             "integrations/pi/extension.mjs", "integrations/pi/adapter.mjs"}
@@ -53,7 +53,7 @@ def _included(name: str) -> bool:
     if name in {"integrations/pi/extension.mjs", "integrations/pi/adapter.mjs"}:
         return True
     if path.parts[0] in {"docs", "examples"}:
-        return path.suffix in {".md", ".json", ".toml", ".yaml", ".yml", ".service", ".timer", ".plist", ".sh"}
+        return path.suffix in {".md", ".json", ".toml", ".yaml", ".yml", ".service", ".timer", ".plist", ".sh", ".svg"}
     if path.parts[0] in {"tests", "scripts"}:
         return path.suffix in {".py", ".mjs", ".sh"}
     if path.parts[0] in {"third_party", "third-party"}:
