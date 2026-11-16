@@ -14,15 +14,25 @@ import os
 from pathlib import Path
 import re
 import sqlite3
+import sys
 from typing import Any, Protocol
 from urllib.parse import urlsplit
 
 from waa.mailbox import AgentMailbox, MailboxBinding
-from waa.reason import ReasonClient
+from waa.reason import ReasonClient, ReasonDisconnectedError, ReasonError
+
+
+_POLL_INTERVAL = 2.0
+_RETRY_INITIAL = 1.0
+_RETRY_MAX = 30.0
 
 
 class OpenClawError(RuntimeError):
     """A configuration or delivery error without credentials or peer bodies."""
+
+
+class RecoverableOpenClawError(OpenClawError):
+    """A transient hook transport failure; admitted IDs still cannot be replayed."""
 
 
 def _ids(values: Any) -> list[str]:
@@ -186,6 +196,10 @@ async def wake_once(binding: Binding, mailbox: Mailbox, hook: HookTransport, jou
     except asyncio.CancelledError:
         journal.finish(operation, "unknown")
         raise
+    except (RecoverableOpenClawError, TimeoutError, ConnectionError):
+        journal.finish(operation, "unknown")
+        raise RecoverableOpenClawError(
+            "OpenClaw wake outcome unknown; inspect the bound agent before any manual retry") from None
     except Exception:
         # A committed submitted admission still prevents automatic retries if
         # recording unknown also fails. Never retain arbitrary hook diagnostics.
@@ -232,14 +246,23 @@ class HookConnection:
             raise OpenClawError("OpenClaw hook cleanup failed; response omitted") from None
 
     async def post(self, payload: dict[str, Any]) -> dict[str, Any]:
+        import httpx2
+
         try:
             response = await self.http.post(self.binding.gateway_url, json=payload)
+            if response.status_code in {408, 429} or 500 <= response.status_code < 600:
+                raise RecoverableOpenClawError("OpenClaw hook temporarily unavailable; response omitted")
             if response.status_code != 200:
                 raise OpenClawError("OpenClaw hook rejected the notification")
             result = response.json()
             if not isinstance(result, dict):
                 raise OpenClawError("Invalid OpenClaw hook result")
             return result
+        except (httpx2.RequestError, TimeoutError, ConnectionError):
+            raise RecoverableOpenClawError(
+                "OpenClaw hook transport interrupted; credentials and response omitted") from None
+        except RecoverableOpenClawError:
+            raise
         except Exception:
             raise OpenClawError("OpenClaw hook request failed; credentials and response omitted") from None
 
@@ -247,19 +270,38 @@ class HookConnection:
 async def run_wake(binding_path: Path, once: bool = False) -> None:
     binding = Binding.load(binding_path)
     journal = Journal(binding)
-    mailbox: AgentMailbox | None = None
+    delay = _RETRY_INITIAL
     try:
-        with ReasonClient(binding.mailbox.reason_state) as reason:
-            mailbox = AgentMailbox(binding.mailbox, binding.session, reason, adapter="openclaw",
-                                   error_type=OpenClawError)
-            mailbox.register()
-            async with HookConnection(binding) as hook:
-                while True:
-                    await wake_once(binding, mailbox, hook, journal)
-                    if once:
-                        return
-                    await asyncio.sleep(2)
+        while True:
+            try:
+                with ReasonClient(binding.mailbox.reason_state) as reason:
+                    mailbox = AgentMailbox(binding.mailbox, binding.session, reason, adapter="openclaw",
+                                           error_type=OpenClawError)
+                    try:
+                        mailbox.register()
+                        async with HookConnection(binding) as hook:
+                            while True:
+                                await wake_once(binding, mailbox, hook, journal)
+                                delay = _RETRY_INITIAL
+                                if once:
+                                    return
+                                await asyncio.sleep(_POLL_INTERVAL)
+                    finally:
+                        mailbox.close()
+            except (RecoverableOpenClawError, ReasonDisconnectedError,
+                    FileNotFoundError, ConnectionError, TimeoutError):
+                if once:
+                    raise
+                print("OpenClaw wake transport interrupted; reconnecting after backoff. "
+                      "Previously admitted notification IDs remain held.", file=sys.stderr)
+                await asyncio.sleep(delay)
+                delay = min(delay * 2, _RETRY_MAX)
+            except OSError:
+                raise OpenClawError(
+                    "OpenClaw mailbox transport configuration failed; inspect local paths and permissions; "
+                    "response omitted") from None
+            except ReasonError:
+                raise OpenClawError(
+                    "OpenClaw mailbox protocol failed; inspect local configuration; response omitted") from None
     finally:
-        if mailbox is not None:
-            mailbox.close()
         journal.close()

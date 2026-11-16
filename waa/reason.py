@@ -12,6 +12,10 @@ class ReasonError(RuntimeError):
     pass
 
 
+class ReasonDisconnectedError(ReasonError):
+    """The IPC connection closed before a complete response arrived."""
+
+
 class ReasonClient:
     def __init__(self, state: Path, timeout: float = 15):
         self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -41,7 +45,7 @@ class ReasonClient:
         while True:
             line = self.reader.readline()
             if not line or not line.endswith(b"\n"):
-                raise ReasonError("Engine closed the connection or returned an invalid frame.")
+                raise ReasonDisconnectedError("Engine closed the connection before a complete response.")
             response = json.loads(line)
             if response.get("id") != self.sequence:
                 if response.get("event") == "deliver":
