@@ -53,6 +53,7 @@ uv run waa smoke
 TailscaleやNetBirdを使わずにチームで接続する場合は、[Cloudflare Tunnelを使う公開リレー](docs/public-relay.md)を利用します。
 VPS上のリレーはループバックだけで待ち受け、公開HTTPSからWebSocketを転送します。
 リレーの端末公開ID許可リストと、Reasonのチーム招待の両方で参加を管理します。
+DockerfileとComposeによる非rootコンテナ起動にも対応します（同手順を参照）。
 
 VPN内に限定する場合は、次のTLS設定例を使います。
 

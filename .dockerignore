@@ -1,0 +1,8 @@
+# Allowlist: never send local identities, state, or Git history to the builder.
+**
+!Dockerfile
+!upstream.lock.json
+!waa/__init__.py
+!waa/bootstrap.py
+!scripts/fetch_relay.py
+!examples/docker-relay.toml

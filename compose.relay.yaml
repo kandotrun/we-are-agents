@@ -1,0 +1,20 @@
+services:
+  relay:
+    build:
+      context: .
+    image: we-are-agents-relay:local
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3340:3340"
+    volumes:
+      - type: bind
+        source: ./private/relay.toml
+        target: /etc/we-are-agents/relay.toml
+        read_only: true
+        bind:
+          create_host_path: false
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 15s
