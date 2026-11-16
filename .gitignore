@@ -1,6 +1,7 @@
 .venv/
 .tools/
 .local/
+dist/
 private/
 __pycache__/
 *.pyc

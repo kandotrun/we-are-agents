@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>ai.mukumo.waa-update-check</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/ABSOLUTE/WAA_HOME/bin/waa</string>
+    <string>update</string>
+    <string>check</string>
+    <string>--home</string>
+    <string>/ABSOLUTE/WAA_HOME</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>WAA_NO_UPDATE_CHECK</key>
+    <string>1</string>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StartInterval</key>
+  <integer>86400</integer>
+  <key>ProcessType</key>
+  <string>Background</string>
+  <key>StandardOutPath</key>
+  <string>/ABSOLUTE/WAA_HOME/update-check.log</string>
+  <key>StandardErrorPath</key>
+  <string>/ABSOLUTE/WAA_HOME/update-check-error.log</string>
+</dict>
+</plist>

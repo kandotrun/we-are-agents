@@ -4,6 +4,8 @@ import argparse
 import asyncio
 from contextlib import nullcontext
 import json
+import os
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 import subprocess
 import sys
@@ -12,13 +14,37 @@ from .bootstrap import ROOT, ensure_tools
 from .runtime import prepare_network, private_network_env
 
 
+def _version() -> str:
+    try:
+        return version("we-are-agents")
+    except PackageNotFoundError:
+        import tomllib
+
+        return tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["version"]
+
+
+def _network_state() -> Path:
+    if os.environ.get("WAA_HOME"):
+        return Path(os.environ["WAA_HOME"]).expanduser().resolve() / "state" / "network"
+    if ROOT.parent.name == "releases" and (ROOT / "release.json").is_file():
+        return ROOT.parent.parent / "state" / "network"
+    return ROOT / ".local" / "network"
+
+
 def main() -> None:
+    if sys.argv[1:2] == ["update"]:
+        from .distribution import main as update_main
+
+        update_main(sys.argv[2:])
+        return
     parser = argparse.ArgumentParser(description="Private team agent networking")
+    parser.add_argument("--version", action="version", version=_version())
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("bootstrap", help="Download and verify the pinned engine and relay locally")
     commands.add_parser("smoke", help="Run an isolated synthetic two-participant transport check")
+    commands.add_parser("update", help="Install, check, apply, or roll back a verified GitHub release")
     network = commands.add_parser("network", help="Run the pinned engine with project-local state", add_help=False)
-    network.add_argument("--state", type=Path, default=ROOT / ".local" / "network")
+    network.add_argument("--state", type=Path, default=_network_state())
     network.add_argument("--relay", required=True, help="Explicit team-owned HTTPS relay (HTTP on loopback only)")
     network.add_argument("--invite-file", type=Path, help="Read a private invite file for join")
     network.add_argument("args", nargs=argparse.REMAINDER)
@@ -61,6 +87,12 @@ def main() -> None:
     t3_bridge.add_argument("--binding", type=Path, required=True)
     args = parser.parse_args()
     try:
+        if (args.command == "pi" and args.pi_command == "run"
+                and sys.stdout.isatty() and sys.stderr.isatty()
+                and os.environ.get("WAA_NO_UPDATE_CHECK") != "1"):
+            from .distribution import maybe_notice
+
+            maybe_notice()
         if args.command == "bootstrap":
             print(json.dumps({name: str(path.relative_to(ROOT)) for name, path in ensure_tools().items()}, indent=2))
         elif args.command == "smoke":

@@ -1,6 +1,6 @@
 [project]
 name = "we-are-agents"
-version = "0.1.0"
+version = "0.2.0"
 description = "Private team agent networking with a pinned Reason Network engine"
 requires-python = ">=3.11"
 dependencies = ["mcp==2.3.0", "httpx2==2.16.0", "cryptography==50.0.2"]

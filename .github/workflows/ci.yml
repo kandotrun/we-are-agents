@@ -15,7 +15,7 @@ jobs:
       matrix:
         os: [ubuntu-24.04, macos-15]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -35,3 +35,5 @@ jobs:
         run: npm install --prefix .tools/openclaw --no-save --ignore-scripts --no-audit --no-fund openclaw@2026.11.4
       - run: uv run python -m unittest discover -v
       - run: uv run waa smoke
+      - name: Build a release without publishing
+        run: uv run python scripts/build_release.py --output "$RUNNER_TEMP/release-dry-run"

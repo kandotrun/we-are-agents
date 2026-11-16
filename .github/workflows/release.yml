@@ -1,0 +1,155 @@
+name: Prepare release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing stable version tag to test and prepare as a draft
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      tag: ${{ steps.source.outputs.tag }}
+      commit: ${{ steps.source.outputs.commit }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate the tagged source
+        id: source
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          import re
+          import subprocess
+          import tomllib
+
+          tag = os.environ['RELEASE_TAG']
+          if not re.fullmatch(r'v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)', tag):
+              raise SystemExit('A stable vX.Y.Z tag is required')
+          commit = subprocess.check_output(['git', 'rev-parse', '--verify', f'refs/tags/{tag}^{{commit}}'], text=True).strip()
+          head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          if head != commit:
+              raise SystemExit('The checkout does not match the requested tag')
+          subprocess.run(['git', 'merge-base', '--is-ancestor', commit, 'origin/main'], check=True)
+          version = tomllib.loads(Path('pyproject.toml').read_text())['project']['version']
+          if tag != f'v{version}':
+              raise SystemExit('The tag does not match the project version')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write(f'tag={tag}\ncommit={commit}\n')
+          PY
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "26"
+      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+        with:
+          version: "0.10.12"
+          python-version: "3.13"
+          enable-cache: true
+      - run: uv sync --locked
+      - name: Install isolated agent test runtimes
+        run: |
+          npm install --prefix .tools/pi --no-save --ignore-scripts --no-audit --no-fund @earendil-works/pi-coding-agent@0.87.1
+          npm install --prefix .tools/openclaw --no-save --ignore-scripts --no-audit --no-fund openclaw@2026.11.4
+          printf '%s\n' "$PWD/.tools/pi/node_modules/.bin" >> "$GITHUB_PATH"
+      - run: uv run python -m unittest discover -v
+      - run: uv run waa smoke
+      - name: Build the exact tested source
+        env:
+          RELEASE_TAG: ${{ steps.source.outputs.tag }}
+        run: python3 scripts/build_release.py --tag "$RELEASE_TAG" --output "$RUNNER_TEMP/release-verified"
+
+  draft:
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.verify.outputs.commit }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Build the verified commit
+        env:
+          RELEASE_TAG: ${{ needs.verify.outputs.tag }}
+        run: python3 scripts/build_release.py --tag "$RELEASE_TAG" --output "$RUNNER_TEMP/release"
+      - name: Check immutable release setting
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_SETTINGS_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import subprocess
+
+          if not os.environ.get('GH_TOKEN'):
+              raise SystemExit('Configure RELEASE_SETTINGS_TOKEN with Administration: read for this repository')
+          repository = os.environ['GH_REPO']
+          result = subprocess.run(['gh', 'api', f'repos/{repository}/immutable-releases'], capture_output=True, text=True)
+          if result.returncode:
+              raise SystemExit('Cannot verify immutable releases. Check API access and RELEASE_SETTINGS_TOKEN with Administration: read for this repository')
+          try:
+              settings = json.loads(result.stdout)
+          except json.JSONDecodeError:
+              raise SystemExit('Invalid immutable release settings response')
+          if not isinstance(settings, dict) or not isinstance(settings.get('enabled'), bool):
+              raise SystemExit('Invalid immutable release settings response')
+          if not settings['enabled']:
+              raise SystemExit('Enable immutable releases in repository settings before preparing a release')
+          PY
+      - name: Prepare assets on a draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.verify.outputs.tag }}
+          RELEASE_COMMIT: ${{ needs.verify.outputs.commit }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import subprocess
+
+          repository = os.environ['GH_REPO']
+          tag = os.environ['RELEASE_TAG']
+          commit = os.environ['RELEASE_COMMIT']
+          resolved = subprocess.check_output(['git', 'ls-remote', '--tags', 'origin', f'refs/tags/{tag}', f'refs/tags/{tag}^{{}}'], text=True)
+          lines = dict(line.split('\t')[::-1] for line in resolved.splitlines())
+          tag_commit = lines.get(f'refs/tags/{tag}^{{}}', lines.get(f'refs/tags/{tag}'))
+          if tag_commit != commit:
+              raise SystemExit('The remote release tag moved after verification')
+          assets = sorted(str(path) for path in (Path(os.environ['RUNNER_TEMP']) / 'release').iterdir())
+          existing = subprocess.run(['gh', 'release', 'view', tag, '--repo', repository, '--json', 'isDraft,targetCommitish'], capture_output=True, text=True)
+          if existing.returncode == 0:
+              release = json.loads(existing.stdout)
+              if release.get('isDraft') is not True or release.get('targetCommitish') != commit:
+                  raise SystemExit('Refusing to replace a published release or a draft for another source commit')
+              subprocess.run(['gh', 'release', 'upload', tag, *assets, '--repo', repository, '--clobber'], check=True)
+          else:
+              # --verify-tag prevents gh from creating a tag. --draft prevents publication.
+              subprocess.run(['gh', 'release', 'create', tag, *assets, '--repo', repository,
+                              '--verify-tag', '--target', commit, '--draft', '--title', tag,
+                              '--generate-notes'], check=True)
+          print('Draft assets prepared. Review them, then publish the immutable release manually.')
+          PY
