@@ -1,0 +1,5 @@
+{
+  "reason_state": "../.local/network",
+  "workspace": "../.local/openclaw-workspace",
+  "identity": "openclaw-identity/profile.json"
+}
