@@ -18,7 +18,7 @@ from typing import Any
 REPOSITORY = "kandotrun/we-are-agents"
 VERSION = re.compile(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)")
 FORBIDDEN = {"private", ".local", ".tools", ".venv", ".git", "__pycache__"}
-ROOT_FILES = {"README.md", "AGENTS.md", "pyproject.toml", "uv.lock", "upstream.lock.json",
+ROOT_FILES = {"Dockerfile", ".dockerignore", "compose.relay.yaml", "README.md", "AGENTS.md", "pyproject.toml", "uv.lock", "upstream.lock.json",
               "LICENSE", "LICENSE.md", "LICENSE.txt", "NOTICE", "NOTICE.md"}
 REQUIRED = {"waa/cli.py", "waa/distribution.py", "pyproject.toml", "uv.lock", "upstream.lock.json",
             "integrations/pi/extension.mjs", "integrations/pi/adapter.mjs"}

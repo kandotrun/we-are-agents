@@ -37,3 +37,15 @@ jobs:
       - run: uv run waa smoke
       - name: Build a release without publishing
         run: uv run python scripts/build_release.py --output "$RUNNER_TEMP/release-dry-run"
+
+  relay-container:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Build native relay and run isolated HTTP smoke
+        run: |
+          docker build -t waa-relay:test .
+          python3 scripts/test_relay_container.py waa-relay:test
+      - name: Build ARM64 relay without executing target binaries
+        run: docker build --platform linux/arm64 -t waa-relay:arm64 .

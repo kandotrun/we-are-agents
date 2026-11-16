@@ -1,0 +1,6 @@
+# Listen inside the container; Compose publishes only to host loopback.
+http_bind_addr = "0.0.0.0:3340"
+enable_metrics = false
+enable_quic_addr_discovery = false
+# Default deny: add approved endpoint public IDs to a private copy.
+access = { allowlist = [] }

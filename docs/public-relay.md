@@ -21,6 +21,46 @@ systemdを使うLinux、Cloudflareで管理するホスト名、名前付きト�
 cloudflaredはVPSから外向きに接続するため、管理用SSHや既存のWebサービスの公開設定を変える必要はありません。
 cloudflaredからCloudflareへの接続には、利用するQUICまたはHTTP/2に必要な外向き通信を許可します。
 
+## Docker / Composeで起動する場合
+
+systemdの代わりに、リポジトリ直下のDockerfileとComposeを使えます。
+Linux amd64 / arm64対応で、ビルド対象に合ったバイナリを
+`upstream.lock.json`から取得し、既存bootstrapと同じSHA-256検証を行います。
+Reason本体やPythonは実行イメージに含めず、静的リンクされたリレーだけを
+非root（UID/GID 65532）で起動します。ビルドコンテキストも許可リスト方式で、
+`private/`・秘密鍵・ローカル状態・Git履歴を送りません。
+
+```sh
+mkdir -p private
+cp examples/docker-relay.toml private/relay.toml
+# private/relay.toml の allowlist に承認済み端末の公開IDを追加
+# コンテナのUID 65532から設定ファイルを読めるようにする
+chmod 644 private/relay.toml
+docker compose -f compose.relay.yaml config
+docker compose -f compose.relay.yaml up -d --build
+docker compose -f compose.relay.yaml logs --tail=100 relay
+curl -sS -o /dev/null -w 'HTTP %{http_code}\n' http://127.0.0.1:3340/
+```
+
+設定ファイルは公開IDだけを含め、秘密鍵・招待・トークンを入れません。
+空のallowlistでは全端末の中継を拒否します。ルートへのHTTP応答は到達確認にすぎず、
+中継の許可や実際のチーム通信の成功を示しません。
+コンテナ内では `0.0.0.0:3340` に待ち受けますが、Composeの公開先は
+ホストの `127.0.0.1:3340` に限定しています。
+既存のsystemdリレーと同時に同じポートを使わないでください。
+既存cloudflaredがホスト上で動く場合、後述のトンネル経路は変更不要です。
+cloudflaredも別コンテナで動く場合、そのコンテナのlocalhostはリレーではありません。
+同じDockerネットワークへ接続し、トンネルのserviceを `http://relay:3340` にします。
+この場合はホストへのports公開を省略できます。トンネルの資格情報はイメージへ入れません。
+
+設定を更新したら `docker compose -f compose.relay.yaml restart relay` で再読込します。
+接続は一度切れるため、端末の再接続を確認してください。
+停止は `docker compose -f compose.relay.yaml down` です。設定ファイルは残ります。
+更新前には旧イメージIDと設定を控え、切り戻しは旧イメージと旧設定で再作成します。
+`docker build --platform linux/arm64 -t we-are-agents-relay:arm64 .` のように
+別アーキテクチャ向けにもビルドできますが、その実行検証には対応ホストが必要です。
+本番への配置や既存サービスの停止は、この手順追加では行いません。
+
 ## リレーの常駐化
 
 VPS上のチェックアウトで固定バイナリを取得します。
