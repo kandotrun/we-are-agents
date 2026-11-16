@@ -2,10 +2,7 @@
 **
 !Dockerfile
 !upstream.lock.json
-!waa/
 !waa/__init__.py
 !waa/bootstrap.py
-!scripts/
 !scripts/fetch_relay.py
-!examples/
 !examples/docker-relay.toml
