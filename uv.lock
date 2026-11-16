@@ -777,12 +777,14 @@ name = "we-are-agents"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "cryptography" },
     { name = "httpx2" },
     { name = "mcp" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "cryptography", specifier = "==50.0.2" },
     { name = "httpx2", specifier = "==2.16.0" },
     { name = "mcp", specifier = "==2.3.0" },
 ]

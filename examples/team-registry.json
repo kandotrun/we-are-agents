@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "network_id": "a213ce94-4eed-4a42-a2c2-d006ec799841",
+  "agents": {
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {
+      "owner_id": "alice",
+      "owner_name": "Alice",
+      "agent_name": "Alice / Pi"
+    },
+    "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb": {
+      "owner_id": "bob",
+      "owner_name": "Bob",
+      "agent_name": "Bob / T3"
+    }
+  }
+}

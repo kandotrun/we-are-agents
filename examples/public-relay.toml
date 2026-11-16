@@ -1,0 +1,8 @@
+# Loopback backend for a public HTTPS Cloudflare Tunnel hostname.
+# Copy to /etc/we-are-agents/relay.toml and add approved endpoint public IDs.
+# An empty allowlist rejects every endpoint; do not change it to "everyone".
+# Public TLS terminates at Cloudflare; no native TLS listener is configured.
+http_bind_addr = "127.0.0.1:3340"
+enable_metrics = false
+enable_quic_addr_discovery = false
+access = { allowlist = [] }

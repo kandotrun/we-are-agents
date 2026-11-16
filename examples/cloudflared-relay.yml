@@ -1,0 +1,10 @@
+# Example for a locally managed named tunnel. Keep credentials outside Git.
+# If the tunnel already serves other hostnames, preserve those routes and add
+# only the relay hostname before its final catch-all rule.
+tunnel: YOUR_TUNNEL_UUID
+credentials-file: /absolute/path/to/YOUR_TUNNEL_UUID.json
+
+ingress:
+  - hostname: agents.example.com
+    service: http://127.0.0.1:3340
+  - service: http_status:404

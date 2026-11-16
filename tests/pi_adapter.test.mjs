@@ -54,7 +54,7 @@ test("late poll response after session switch cannot inject into the replacement
 
 test("late tool result after disposal is refused; tools are explicit operations", async () => {
   const f = fixture();
-  assert.deepEqual([...f.tools.keys()], ["waa_list_team", "waa_send_message", "waa_check_inbox", "waa_ack_messages"]);
+  assert.deepEqual([...f.tools.keys()], ["waa_identity", "waa_list_team", "waa_send_message", "waa_check_inbox", "waa_ack_messages"]);
   const response = await f.tools.get("waa_check_inbox").execute("call-1", {});
   assert.equal(JSON.parse(response.content[0].text).framed_messages, "ORIGINAL");
   await f.tools.get("waa_send_message").execute("call-2", { to: "peer/agent", message: "hello" });
@@ -111,5 +111,39 @@ test("old-session bridge failure cannot notify the replacement UI", async () => 
   rejectOld(new Error("old bridge ended"));
   await new Promise(done => setImmediate(done));
   assert.deepEqual(notifications, []);
+  handlers.get("session_shutdown")();
+});
+
+test("trusted local owner policy reaches each turn and is cleared on session replacement", async () => {
+  const handlers = new Map(), sent = [];
+  const owner = { enabled: true, owner_id: "kan", owner_name: "Kan", agent_name: "Pi",
+    public_key: "public-key", policy: "Ask Kan before production deployment." };
+  const pi = { registerTool() {}, on(event, handler) { handlers.set(event, handler); },
+    sendMessage(message) { sent.push(message); } };
+  installExtension(pi, {
+    bridgeFactory(session) {
+      return { async call(op) {
+        if (session === "old") return op === "poll"
+          ? { wake_ids: ["accepted-mail"], identity_context: owner } : owner;
+        if (op === "poll") return { wake_ids: [] };
+        throw new Error("replacement bridge unavailable");
+      }, close() {} };
+    }, setInterval() { return { unref() {} }; }, clearInterval() {},
+  });
+  const ctx = id => ({ ...context(id), ui: { notify() {} } });
+  handlers.get("session_start")({}, ctx("old"));
+  await new Promise(done => setImmediate(done));
+  assert.equal(sent.length, 1);
+  const prompt = await handlers.get("before_agent_start")({ systemPrompt: "BASE" });
+  assert.match(prompt.systemPrompt, /Ask Kan before production deployment/);
+  assert.match(prompt.systemPrompt, /does not grant native tool permissions/);
+  const repeated = await handlers.get("before_agent_start")({ systemPrompt: "BASE" });
+  assert.equal(repeated.systemPrompt, prompt.systemPrompt);
+  handlers.get("session_shutdown")();
+  handlers.get("session_start")({}, ctx("new"));
+  await new Promise(done => setImmediate(done));
+  const replacement = await handlers.get("before_agent_start")({ systemPrompt: "BASE" });
+  assert.doesNotMatch(replacement.systemPrompt, /Ask Kan before production deployment/);
+  assert.match(replacement.systemPrompt, /human's decision and permission boundaries/);
   handlers.get("session_shutdown")();
 });
