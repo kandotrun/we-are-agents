@@ -1,0 +1,15 @@
+# Copy into ignored private/relay.toml, then replace the example values.
+# Run with: uv run waa relay -- --config-path private/relay.toml
+http_bind_addr = "127.0.0.1:3340"
+enable_metrics = false
+enable_quic_addr_discovery = false
+
+# The VPN ACL controls who can reach this relay. Agent membership is checked
+# independently by the Reason endpoints; the relay forwards encrypted traffic.
+access = "everyone"
+
+[tls]
+https_bind_addr = "100.100.100.10:443"
+cert_mode = "Manual"
+manual_cert_path = "/absolute/path/to/relay.example.ts.net.crt"
+manual_key_path = "/absolute/path/to/relay.example.ts.net.key"

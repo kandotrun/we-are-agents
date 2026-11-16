@@ -1,0 +1,51 @@
+{
+  "schema": 1,
+  "tools": {
+    "reason-network": {
+      "repository": "https://github.com/reason-machines/reason-network",
+      "version": "v0.12.17",
+      "commit": "5872711927788b0d43a8a940ea45f993bc2926bc",
+      "assets": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/reason-machines/reason-network/releases/download/v0.12.17/reason-network-aarch64-apple-darwin.tar.gz",
+          "sha256": "6676e806abba74b313ee027b5b4020634077b0ef4c01c0a9eb4dd61ec77ea705"
+        },
+        "x86_64-apple-darwin": {
+          "url": "https://github.com/reason-machines/reason-network/releases/download/v0.12.17/reason-network-x86_64-apple-darwin.tar.gz",
+          "sha256": "e71fbd5c7c080048c1220025e2aa716c3af6b18901f18e5beece1323cfcdd96f"
+        },
+        "aarch64-unknown-linux-musl": {
+          "url": "https://github.com/reason-machines/reason-network/releases/download/v0.12.17/reason-network-aarch64-unknown-linux-musl.tar.gz",
+          "sha256": "e53ef46ee57eb9e9cd3b13d45acfe5ce4766c18861b46926560e34903adaa151"
+        },
+        "x86_64-unknown-linux-musl": {
+          "url": "https://github.com/reason-machines/reason-network/releases/download/v0.12.17/reason-network-x86_64-unknown-linux-musl.tar.gz",
+          "sha256": "2234527ff9330c78bff8581cc060bf1396e15d8091c27fb5acdb989010f5018f"
+        }
+      }
+    },
+    "iroh-relay": {
+      "repository": "https://github.com/n0-computer/iroh",
+      "version": "v1.4.1",
+      "commit": "d6c6963b9602d1b8dd2ba53b6519e7eb19cc7940",
+      "assets": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/n0-computer/iroh/releases/download/v1.4.1/iroh-relay-v1.4.1-aarch64-apple-darwin.tar.gz",
+          "sha256": "4f099f834c9ea84d05b9ba0d1e44ec3443794f7aea41e2d03c429d6334ea9303"
+        },
+        "x86_64-apple-darwin": {
+          "url": "https://github.com/n0-computer/iroh/releases/download/v1.4.1/iroh-relay-v1.4.1-x86_64-apple-darwin.tar.gz",
+          "sha256": "b78c6c17af57fc67c0136507952c05e15f27559c7d7ebb085411a45e263ab597"
+        },
+        "aarch64-unknown-linux-musl": {
+          "url": "https://github.com/n0-computer/iroh/releases/download/v1.4.1/iroh-relay-v1.4.1-aarch64-unknown-linux-musl.tar.gz",
+          "sha256": "3fc0c2d67c1cd66250bf82f3e2f17a985b7081a3d272186bad9d63e3f2347b38"
+        },
+        "x86_64-unknown-linux-musl": {
+          "url": "https://github.com/n0-computer/iroh/releases/download/v1.4.1/iroh-relay-v1.4.1-x86_64-unknown-linux-musl.tar.gz",
+          "sha256": "75254641e3fad7fcbac6dee4d485556fbe06ef708340a9d8810469270ba626b8"
+        }
+      }
+    }
+  }
+}

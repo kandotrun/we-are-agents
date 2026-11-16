@@ -1,0 +1,8 @@
+.venv/
+.tools/
+.local/
+private/
+__pycache__/
+*.pyc
+*.egg-info/
+.DS_Store
