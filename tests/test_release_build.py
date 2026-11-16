@@ -94,6 +94,9 @@ class ReleaseBuildTests(unittest.TestCase):
         self.write("docs/updates.md", "Synthetic release instructions.\n")
         self.write("examples/systemd/waa-relay.service", "[Service]\nExecStart=/synthetic/iroh-relay\n")
         self.write("README.md", "Synthetic distribution fixture.\n")
+        self.write("README.ja.md", "Synthetic Japanese distribution fixture.\n")
+        self.write("docs/images/readme-hero.svg", '<svg xmlns="http://www.w3.org/2000/svg"/>\n')
+        self.write("docs/images/readme-hero.ja.svg", '<svg xmlns="http://www.w3.org/2000/svg"/>\n')
         self.write("LICENSE", "Synthetic license fixture.\n")
         self.commit()
 
@@ -138,6 +141,11 @@ class ReleaseBuildTests(unittest.TestCase):
         self.assertIn("docs/updates.md", files)
         self.assertIn("examples/systemd/waa-relay.service", files)
         self.assertIn("LICENSE", files)
+        # Both README languages ship with the image they reference.
+        self.assertIn("README.md", files)
+        self.assertIn("README.ja.md", files)
+        self.assertIn("docs/images/readme-hero.svg", files)
+        self.assertIn("docs/images/readme-hero.ja.svg", files)
         self.assertEqual(files["integrations/pi/extension.mjs"], (self.source / "integrations/pi/extension.mjs").read_bytes())
         self.assertEqual((first / "waa-install.py").read_bytes(), files["waa/distribution.py"])
         descriptor = json.loads(files["release.json"])
