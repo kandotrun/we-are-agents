@@ -4,18 +4,71 @@ import hashlib
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
 import subprocess
 import tarfile
 import tempfile
+import textwrap
 import unittest
+from unittest.mock import patch
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts/build_release.py"
+WORKFLOW = SCRIPT.parents[1] / ".github/workflows/release.yml"
 SPEC = importlib.util.spec_from_file_location("waa_release_builder", SCRIPT)
 assert SPEC is not None and SPEC.loader is not None
 builder = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(builder)
+
+
+class ReleaseSettingsTests(unittest.TestCase):
+    def preflight(self, response: subprocess.CompletedProcess, *, token="synthetic-admin-read") -> None:
+        workflow = WORKFLOW.read_text()
+        step = workflow.split("      - name: Check immutable release setting\n", 1)[1].split("      - name:", 1)[0]
+        self.assertIn("GH_TOKEN: ${{ secrets.RELEASE_SETTINGS_TOKEN }}", step)
+        self.assertNotIn("github.token", step)
+        write_step = workflow.split("      - name: Prepare assets on a draft release\n", 1)[1]
+        self.assertIn("GH_TOKEN: ${{ github.token }}", write_step)
+        self.assertNotIn("RELEASE_SETTINGS_TOKEN", write_step)
+        script = textwrap.dedent(step.split("python3 - <<'PY'\n", 1)[1].rsplit("          PY", 1)[0])
+        environment = {"GH_TOKEN": token, "GH_REPO": "synthetic/repository"}
+        with patch.dict(os.environ, environment, clear=True), patch("subprocess.run", return_value=response) as run:
+            try:
+                exec(compile(script, str(WORKFLOW), "exec"), {"__name__": "__main__"})
+            finally:
+                if token:
+                    run.assert_called_once_with(
+                        ["gh", "api", "repos/synthetic/repository/immutable-releases"],
+                        capture_output=True, text=True,
+                    )
+                else:
+                    run.assert_not_called()
+
+    def test_authorized_enabled_preflight_passes_with_separate_read_credential(self) -> None:
+        self.preflight(subprocess.CompletedProcess([], 0, '{"enabled":true}', ""))
+
+    def test_permission_denial_refuses_without_claiming_the_setting_is_disabled(self) -> None:
+        with self.assertRaises(SystemExit) as error:
+            self.preflight(subprocess.CompletedProcess([], 1, "", "SYNTHETIC HTTP 403 RESPONSE"))
+        message = str(error.exception)
+        self.assertIn("RELEASE_SETTINGS_TOKEN", message)
+        self.assertIn("Administration: read", message)
+        self.assertNotIn("Enable immutable", message)
+        self.assertNotIn("SYNTHETIC HTTP 403 RESPONSE", message)
+
+    def test_authorized_disabled_preflight_requests_setting_change(self) -> None:
+        with self.assertRaisesRegex(SystemExit, "Enable immutable releases"):
+            self.preflight(subprocess.CompletedProcess([], 0, '{"enabled":false}', ""))
+
+    def test_missing_credential_is_refused_before_any_api_call(self) -> None:
+        with self.assertRaisesRegex(SystemExit, "RELEASE_SETTINGS_TOKEN"):
+            self.preflight(subprocess.CompletedProcess([], 0, '{"enabled":true}', ""), token="")
+
+    def test_invalid_setting_response_is_refused(self) -> None:
+        for value in ("not json", "[]", "{}", '{"enabled":"true"}'):
+            with self.subTest(value=value), self.assertRaisesRegex(SystemExit, "Invalid immutable release settings response"):
+                self.preflight(subprocess.CompletedProcess([], 0, value, ""))
 
 
 class ReleaseBuildTests(unittest.TestCase):

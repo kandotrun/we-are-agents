@@ -223,6 +223,18 @@ launchctl print "gui/$(id -u)/ai.mukumo.waa-update-check"
 この設定の有効化や、正式リリースの公開はワークフローが自動で行いません。
 公開後にファイルやタグを変更できなくなるため、[GitHubのImmutable releases](https://docs.github.com/en/code-security/concepts/supply-chain-security/immutable-releases)を確認してください。
 
+続いて、このリポジトリだけを対象にしたFine-grained personal access tokenへ、Repository permissionsの`Administration: Read-only`を付けます。
+トークンをGitHubのリポジトリ設定の`Secrets and variables → Actions`で、`RELEASE_SETTINGS_TOKEN`というシークレットに登録します。
+このトークンにContentsの書き込み権限は不要です。
+有効期限を設定し、期限が切れる前にシークレットを更新してください。
+
+この認証はImmutable設定を確認する1ステップにだけ渡します。
+標準の`GITHUB_TOKEN`にはこのAPIに必要なAdministration権限を付けられないため、[設定確認APIの権限](https://docs.github.com/en/rest/repos/repos#check-if-immutable-releases-are-enabled-for-a-repository)に従って分けています。
+Draftの作成と配布物の添付には、そのジョブの`contents: write`付き`GITHUB_TOKEN`を使います。
+シークレットが未登録、期限切れ、権限不足などで確認できない場合は下書きを作らずに停止し、認証を確認するメッセージを出します。
+認証済みの応答で設定が無効と確認できた場合にだけ、有効化を案内します。
+トークンの値をソース、コマンド例、Issue、チャットへ貼り付けないでください。
+
 配布する版の`pyproject.toml`、`uv.lock`、`upstream.lock.json`と変更内容をPRで確認し、CIが通ったコミットをmainへ統合します。
 ソースの固定版から配布物を作るため、ビルド時は追跡中の変更がない状態を使います。
 

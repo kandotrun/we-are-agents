@@ -93,6 +93,31 @@ jobs:
         env:
           RELEASE_TAG: ${{ needs.verify.outputs.tag }}
         run: python3 scripts/build_release.py --tag "$RELEASE_TAG" --output "$RUNNER_TEMP/release"
+      - name: Check immutable release setting
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_SETTINGS_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import subprocess
+
+          if not os.environ.get('GH_TOKEN'):
+              raise SystemExit('Configure RELEASE_SETTINGS_TOKEN with Administration: read for this repository')
+          repository = os.environ['GH_REPO']
+          result = subprocess.run(['gh', 'api', f'repos/{repository}/immutable-releases'], capture_output=True, text=True)
+          if result.returncode:
+              raise SystemExit('Cannot verify immutable releases. Check API access and RELEASE_SETTINGS_TOKEN with Administration: read for this repository')
+          try:
+              settings = json.loads(result.stdout)
+          except json.JSONDecodeError:
+              raise SystemExit('Invalid immutable release settings response')
+          if not isinstance(settings, dict) or not isinstance(settings.get('enabled'), bool):
+              raise SystemExit('Invalid immutable release settings response')
+          if not settings['enabled']:
+              raise SystemExit('Enable immutable releases in repository settings before preparing a release')
+          PY
       - name: Prepare assets on a draft release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -109,9 +134,6 @@ jobs:
           repository = os.environ['GH_REPO']
           tag = os.environ['RELEASE_TAG']
           commit = os.environ['RELEASE_COMMIT']
-          enabled = subprocess.run(['gh', 'api', f'repos/{repository}/immutable-releases'], capture_output=True, text=True)
-          if enabled.returncode or json.loads(enabled.stdout).get('enabled') is not True:
-              raise SystemExit('Enable immutable releases in repository settings before preparing a release')
           resolved = subprocess.check_output(['git', 'ls-remote', '--tags', 'origin', f'refs/tags/{tag}', f'refs/tags/{tag}^{{}}'], text=True)
           lines = dict(line.split('\t')[::-1] for line in resolved.splitlines())
           tag_commit = lines.get(f'refs/tags/{tag}^{{}}', lines.get(f'refs/tags/{tag}'))
