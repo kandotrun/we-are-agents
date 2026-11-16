@@ -27,6 +27,12 @@ uv run waa smoke
 
 ## 自前リレーを起動する
 
+TailscaleやNetBirdを使わずにチームで接続する場合は、[Cloudflare Tunnelを使う公開リレー](docs/public-relay.md)を利用します。
+VPS上のリレーはループバックだけで待ち受け、公開HTTPSからWebSocketを転送します。
+リレーの端末公開ID許可リストと、Reasonのチーム招待の両方で参加を管理します。
+
+VPN内に限定する場合は、次のTLS設定例を使います。
+
 ```sh
 mkdir -p private
 cp examples/relay.toml private/relay.toml
@@ -71,6 +77,18 @@ VPN内だけを通る経路の保証には、別途[2台での受け入れ確認
 
 ## エージェントを接続する
 
+複数人で使う場合は、[所有者・署名・自然言語ポリシー](docs/identity.md)を先に設定します。
+署名鍵を確認済みの所有者とエージェント名へ登録し、PiとT3のバインディングに`identity`を指定します。
+このモードでは、未登録・未署名・改ざんされた依頼をモデルの起動や本文読取へ渡しません。
+作業範囲は各所有者のローカルポリシーに自然言語で記述し、既存のツール権限と人間の承認はそのまま使います。
+自然言語ポリシー自体は、OSやコーディングツールの権限を強制する仕組みではありません。
+
+```sh
+uv run waa identity init --directory private/kan-pi \
+  --owner-id kan --owner-name Kan --agent-name Pi
+uv run waa identity show --profile private/kan-pi/profile.json
+```
+
 [Pi連携](docs/pi.md)は、グローバル設定を書き換えず、指定した作業ディレクトリと状態でPiを起動します。
 Pi 0.87.1の実プロセスで、実エンジンへの着信、処理開始、本文の読取、明示的な受信確認、相関する返答までを、ローカルの合成モデルを使って検証します。
 
@@ -84,6 +102,7 @@ T3の実環境への接続は、資格情報とスレッド専用の設定を用
 
 他のMCPクライアントは、次の起動定義で固定エンジンの送受信ツールを利用できます。
 絶対パスとリレーURLを環境に合わせて置き換えます。
+これは基礎的な送受信用の定義で、上記の署名付き所有者確認はPiとT3の専用アダプターで利用します。
 
 ```json
 {

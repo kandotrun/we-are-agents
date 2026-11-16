@@ -24,6 +24,16 @@ def main() -> None:
     network.add_argument("args", nargs=argparse.REMAINDER)
     relay = commands.add_parser("relay", help="Run the pinned relay in the foreground", add_help=False)
     relay.add_argument("args", nargs=argparse.REMAINDER)
+    identity = commands.add_parser("identity", help="Create or show an agent's registered signing identity")
+    identity_commands = identity.add_subparsers(dest="identity_command", required=True)
+    identity_init = identity_commands.add_parser("init")
+    identity_init.add_argument("--directory", type=Path, required=True)
+    identity_init.add_argument("--owner-id", required=True)
+    identity_init.add_argument("--owner-name", required=True)
+    identity_init.add_argument("--agent-name", required=True)
+    identity_init.add_argument("--registry", type=Path)
+    identity_show = identity_commands.add_parser("show")
+    identity_show.add_argument("--profile", type=Path, required=True)
     pi = commands.add_parser("pi", help="Connect Pi with an explicit workspace and Reason state")
     pi_commands = pi.add_subparsers(dest="pi_command", required=True)
     pi_run = pi_commands.add_parser("run")
@@ -67,6 +77,17 @@ def main() -> None:
             with private_network_env(args.state, args.relay) if args.command == "network" else nullcontext(None) as env:
                 result = subprocess.run([str(tool), *forwarded], env=env)
             raise SystemExit(result.returncode)
+        elif args.command == "identity":
+            from .identity import initialize_identity, public_identity
+
+            if args.identity_command == "init":
+                result = initialize_identity(
+                    args.directory, owner_id=args.owner_id, owner_name=args.owner_name,
+                    agent_name=args.agent_name, registry_file=args.registry,
+                )
+            else:
+                result = public_identity(args.profile)
+            print(json.dumps(result, ensure_ascii=False, indent=2))
         elif args.command == "pi":
             from .pi import run_bridge, run_pi
 

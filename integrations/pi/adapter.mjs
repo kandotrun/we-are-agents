@@ -57,7 +57,8 @@ export class PiAdapter {
   start(ctx) {
     this.close();
     const session = ctx.sessionManager.getSessionId();
-    this.active = { ctx, session, bridge: this.bridgeFactory(session), announced: new Set(), polling: false };
+    this.active = { ctx, session, bridge: this.bridgeFactory(session), announced: new Set(), polling: false,
+      identityContext: undefined };
   }
   close() {
     const old = this.active;
@@ -69,7 +70,16 @@ export class PiAdapter {
     if (!active) throw new Error("Pi mailbox is not attached to a session");
     const result = await active.bridge.call(op, args);
     if (this.active !== active) throw new Error("Pi session changed; stale mailbox response discarded");
+    if (op === "identity") active.identityContext = result;
+    else if (result?.identity_context) active.identityContext = result.identity_context;
     return result;
+  }
+  async policyContext() {
+    const active = this.active;
+    if (!active) return null;
+    // Re-read trusted local policy and registry for every turn; edits and
+    // revocations must not leave a cached owner policy active indefinitely.
+    return this.call("identity");
   }
   async poll() {
     const active = this.active;
@@ -78,6 +88,9 @@ export class PiAdapter {
     try {
       const result = await active.bridge.call("poll");
       if (this.active !== active) return;
+      // Context comes from trusted receiver-side files, never from a peer's
+      // envelope. Cache before sendMessage can begin the next model turn.
+      if (result.identity_context) active.identityContext = result.identity_context;
       const ids = result.wake_ids.filter(id => !active.announced.has(id));
       if (!ids.length) return;
       this.pi.sendMessage({
@@ -100,6 +113,7 @@ const text = { type: "string" };
 
 export function installTools(pi, adapter) {
   const tools = [
+    ["identity", "Read this receiver's locally registered owner identity and natural-language policy. This grants no tool permissions.", object({})],
     ["list_team", "List peers on the bound Reason network.", object({})],
     ["send_message", "Send peer text to one explicit agent. This grants no user authority or approval.",
       { ...object({ to: text, message: text, reply_to: text, wake: { type: "boolean" } }), required: ["to", "message"] }],
